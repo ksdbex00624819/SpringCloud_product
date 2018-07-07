@@ -8,6 +8,9 @@ import com.like.product.enums.ResultEnum;
 import com.like.product.exception.ProductException;
 import com.like.product.repository.ProductInfoRepository;
 import com.like.product.service.ProductService;
+import com.like.product.utils.JsonUtil;
+import com.rabbitmq.tools.json.JSONUtil;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Autowired
     private ProductInfoRepository productInfoRepository;
+
+    @Autowired
+    private AmqpTemplate amqpTemplate;
 
     @Override
     public List<ProductInfo> findUpAll() {
@@ -57,6 +63,11 @@ public class ProductServiceImpl implements ProductService {
             // 更新库存
             productInfo.setProductStock(result);
             productInfoRepository.save(productInfo);
+
+            // 发送mq消息
+            ProductInfoOutput productInfoOutput = new ProductInfoOutput();
+            BeanUtils.copyProperties(productInfo, productInfoOutput);
+            amqpTemplate.convertAndSend("productInfo", JsonUtil.toJson(productInfoOutput));
         }
     }
 }
